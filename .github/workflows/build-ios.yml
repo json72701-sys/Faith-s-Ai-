@@ -31,23 +31,26 @@ jobs:
           npm install
           npm install @capacitor/core @capacitor/cli @capacitor/ios
 
-      # FIX: Added --no-link to prevent it from auto-running pod install too early
+      # FIX: Pre-builds the exact structure and Podfile before Capacitor can mess it up
+      - name: Pre-scaffold iOS Target Directory and Podfile
+        run: |
+          mkdir -p ios/App
+          cat << 'EOF' > ios/App/Podfile
+          platform :ios, '14.0'
+          use_frameworks!
+
+          target 'App' do
+            pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
+            pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
+          end
+          EOF
+          echo "Pre-emptive iOS 14 Podfile deployed successfully."
+
+      # Run initialization safely now that the Podfile target block is pinned to 14.0
       - name: Initialize Native iOS Scaffold
         run: |
           npx cap init "Faiths AI" "com.faith.ai" --web-dir=public
-          npx cap add ios --no-link
-
-      # FIX: Modifies the target version inside BOTH the Podfile and the Capacitor target
-      - name: Force Modern iOS Deployment Target
-        run: |
-          sed -i '' "s/platform :ios, '.*/platform :ios, '14.0'/g" ios/App/Podfile
-          echo "Updated Podfile platform target to iOS 14.0"
-
-      # FIX: Manually triggers the dependency installer now that the version target is correct
-      - name: Install Native iOS Dependencies
-        run: |
-          cd ios/App
-          pod install
+          npx cap add ios
 
       - name: Bundle Web Assets
         run: |
