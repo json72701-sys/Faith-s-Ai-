@@ -2,49 +2,48 @@ name: Build Faiths AI IPA
 
 on:
   push:
-    branches: [ main ] # Triggers the build every time you commit code to the main branch
-  workflow_dispatch: # Allows you to manually click a button on GitHub to trigger a build
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build-ios:
-    runs-on: macos-latest # Fires up an Apple Mac server in the cloud
+    runs-on: macos-latest
 
     steps:
-      # Step 1: Download your repository files onto the GitHub virtual Mac
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      # Step 2: Set up Node.js for bundling the web frontend
       - name: Setup Node.js Environment
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # Step 3: Install all needed app assets and compiler plugins
       - name: Install Project Dependencies
         run: |
           npm install
           npm install @capacitor/core @capacitor/cli @capacitor/ios
 
-      # Step 4: Build your sleek HTML/CSS/JS frontend interface
+      # FIX STEP: Generates the missing local config and iOS workspace folders dynamically
+      - name: Initialize Native iOS Scaffold
+        run: |
+          npx cap init "Faiths AI" "com.faith.ai" --web-dir=public --noprompt
+          npx cap add ios
+
       - name: Bundle Web Assets
         run: |
           npx cap sync ios
 
-      # Step 5: Compile the app down to an Unsigned iOS App package
       - name: Compile Xcode Workspace
         run: |
           cd ios/App
           xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos clean build CODE_SIGNING_ALLOWED=NO
 
-      # Step 6: Convert the raw app build into a shareable .ipa package
       - name: Package Build into .ipa
         run: |
           mkdir -p build/ios/ipa
           cd ios/App/build/Release-iphoneos
           zip -r ../../../../build/ios/ipa/FaithsAI.ipa App.app
 
-      # Step 7: Push the final .ipa file to your GitHub dashboard so you can download it to your iPad/iPhone
       - name: Upload Completed IPA Artifact
         uses: actions/upload-artifact@v4
         with:
