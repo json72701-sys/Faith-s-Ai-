@@ -1,9 +1,6 @@
 name: Build Faiths AI IPA
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
@@ -11,93 +8,41 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      # Checkout repository
-      - name: Checkout Source Code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # Install dependencies
       - name: Install Dependencies
-        run: |
-          npm install
-          npm install @capacitor/core @capacitor/cli @capacitor/ios
+        run: npm install
 
-      # Create public folder if missing
       - name: Ensure Public Folder Exists
         run: |
           mkdir -p public
-          echo "<h1>Faiths AI</h1>" > public/index.html
 
-      # Initialize Capacitor only if missing
-      - name: Initialize Capacitor
-        run: |
-          if [ ! -f capacitor.config.json ]; then
-            npx cap init "Faiths AI" "com.faith.ai" --web-dir=public
+          if [ ! -f public/index.html ]; then
+            echo "<h1>Faiths AI</h1>" > public/index.html
           fi
 
-      # Force modern iOS deployment target BEFORE ios project creation
-      - name: Force iOS 15 Deployment Target
-        run: |
-          node -e "
-          const fs = require('fs');
-          const path = './capacitor.config.json';
-          const config = JSON.parse(fs.readFileSync(path, 'utf8'));
-
-          config.ios = {
-            minVersion: '15.0'
-          };
-
-          fs.writeFileSync(path, JSON.stringify(config, null, 2));
-          console.log('Updated capacitor.config.json');
-          "
-
-      # Add iOS platform
       - name: Add iOS Platform
-        run: |
-          npx cap add ios
+        run: npx cap add ios
 
-      # Patch Podfile correctly
-      - name: Patch Podfile
-        run: |
-          cat << 'EOF' > ios/App/Podfile
-          platform :ios, '15.0'
-
-          use_frameworks!
-
-          target 'App' do
-            capacitor_pods
-          end
-
-          def capacitor_pods
-            pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
-            pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
-          end
-          EOF
-
-      # Sync Capacitor
       - name: Sync Capacitor
-        run: |
-          npx cap sync ios
+        run: npx cap sync ios
 
-      # Install CocoaPods dependencies
-      - name: Install CocoaPods Dependencies
-        run: |
-          cd ios/App
-          pod repo update
-          pod install
-
-      # Force deployment target in Xcode project
-      - name: Patch Xcode Deployment Target
+      - name: Force iOS 15 Deployment Target
         run: |
           sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = .*/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g' ios/App/App.xcodeproj/project.pbxproj
 
-      # Build app
-      - name: Build Xcode Project
+      - name: Install CocoaPods
+        run: |
+          cd ios/App
+          pod install
+
+      - name: Build App
         run: |
           cd ios/App
 
@@ -110,21 +55,16 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             clean build
 
-      # Create Payload structure
-      - name: Create IPA Structure
+      - name: Create IPA
         run: |
-          mkdir -p Payload
-          cp -R ios/App/build/Release-iphoneos/App.app Payload/
+          mkdir Payload
+          cp -R ios/App/build/Release-iphoneos/App.app Payload
 
-      # Zip IPA
-      - name: Package IPA
-        run: |
-          mkdir -p build/ios
-          zip -r build/ios/FaithsAI.ipa Payload
+          mkdir -p build
+          zip -r build/FaithsAI.ipa Payload
 
-      # Upload artifact
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: FaithsAI-IPA
-          path: build/ios/FaithsAI.ipa
+          name: FaithsAI
+          path: build/FaithsAI.ipa
