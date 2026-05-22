@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Faith's AI</title>
+    <style>
+        :root {
+            --bg-color: #0b0b12;
+            --panel-color: #131322;
+            --accent-color: #8b5cf6;
+            --accent-glow: rgba(139, 92, 246, 0.4);
+            --text-color: #e2e8f0;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: '-apple-system', BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-color); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* Login Screen Overlay */
+        #login-screen { position: fixed; inset: 0; background: var(--bg-color); z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        .login-card { background: var(--panel-color); padding: 30px; border-radius: 20px; border: 1px solid #23233a; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .login-card h1 { font-size: 2rem; margin-bottom: 10px; color: #fff; text-shadow: 0 0 10px var(--accent-glow); }
+        .login-card p { color: #94a3b8; font-size: 0.9rem; margin-bottom: 20px; }
+        input[type="email"], input[type="text"] { width: 100%; padding: 14px; background: #07070c; border: 1px solid #2d2d44; border-radius: 12px; color: #fff; font-size: 1rem; margin-bottom: 15px; outline: none; transition: 0.2s; }
+        input:focus { border-color: var(--accent-color); box-shadow: 0 0 8px var(--accent-glow); }
+        button { width: 100%; padding: 14px; background: var(--accent-color); border: none; border-radius: 12px; color: #fff; font-size: 1rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 14px var(--accent-glow); transition: 0.2s; }
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        /* Main App Layout */
+        header { background: var(--panel-color); padding: 20px; text-align: center; border-bottom: 1px solid #1e1e32; font-size: 1.2rem; font-weight: bold; letter-spacing: 1px; color: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        #chat-container { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        
+        .message { max-width: 80%; padding: 14px 18px; border-radius: 18px; line-height: 1.5; font-size: 0.95rem; word-break: break-word; }
+        .user-message { background: var(--accent-color); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+        .ai-message { background: var(--panel-color); color: var(--text-color); align-self: flex-start; border-bottom-left-radius: 4px; border: 1px solid #1e1e32; white-space: pre-wrap; }
+
+        /* Input Dock */
+        #input-dock { padding: 20px; background: var(--panel-color); border-top: 1px solid #1e1e32; display: flex; gap: 10px; align-items: center; }
+        #input-dock input { margin-bottom: 0; flex: 1; }
+        #input-dock button { width: auto; padding: 14px 24px; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <div class="login-card">
+            <h1>Faith's AI</h1>
+            <p>Please enter your profile identity to establish a session terminal.</p>
+            <input type="email" id="user-email" placeholder="name@example.com" required>
+            <button onclick="startSession()">Connect Terminal</button>
+        </div>
+    </div>
+
+    <header>FAITH'S AI</header>
+    <div id="chat-container">
+        <div class="message ai-message">System online. Terminal session established. How can I assist your workflow today?</div>
+    </div>
+    <div id="input-dock">
+        <input type="text" id="chat-input" placeholder="Ask anything...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        let sessionEmail = "";
+        // Replace this URL with your live deployed backend URL (e.g., Vercel or Render URL)
+        const BACKEND_URL = "https://your-backend-server.com/api/chat";
+
+        function startSession() {
+            const emailInput = document.getElementById('user-email').value;
+            if (emailInput.includes('@')) {
+                sessionEmail = emailInput.trim();
+                document.getElementById('login-screen').style.display = 'none';
+            } else {
+                alert("Please enter a valid session email.");
+            }
+        }
+
+        async function sendMessage() {
+            const inputField = document.getElementById('chat-input');
+            const chatContainer = document.getElementById('chat-container');
+            const prompt = inputField.value.trim();
+            
+            if (!prompt) return;
+
+            // Render User Message
+            const userDiv = document.createElement('div');
+            userDiv.className = 'message user-message';
+            userDiv.textContent = prompt;
+            chatContainer.appendChild(userDiv);
+            inputField.value = "";
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            // Render Loader Message
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message ai-message';
+            loadingDiv.textContent = "Processing logic...";
+            chatContainer.appendChild(loadingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            try {
+                const response = await fetch(BACKEND_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: sessionEmail, prompt: prompt })
+                });
+                const data = await response.json();
+                
+                loadingDiv.textContent = data.reply;
+            } catch (error) {
+                loadingDiv.textContent = "System Error: Failed to safely communicate with server pipeline.";
+            }
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    </script>
+</body>
+</html>
