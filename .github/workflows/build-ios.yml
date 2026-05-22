@@ -2,7 +2,8 @@ name: Build Faiths AI IPA
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -10,78 +11,120 @@ jobs:
     runs-on: macos-latest
 
     steps:
+      # Checkout repository
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js Environment
+      # Setup Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # Creates package.json if it is missing in the root directory
-      - name: Initialize package.json if missing
-        run: |
-          if [ ! -f package.json ]; then
-            echo "package.json not found! Initializing default project configuration..."
-            npm init -y
-          fi
-
-      - name: Install Project Dependencies
+      # Install dependencies
+      - name: Install Dependencies
         run: |
           npm install
           npm install @capacitor/core @capacitor/cli @capacitor/ios
 
-      # Step 1: Initialize the base configuration setting
-      - name: Initialize Capacitor Config
+      # Create public folder if missing
+      - name: Ensure Public Folder Exists
         run: |
-          npx cap init "Faiths AI" "com.faith.ai" --web-dir=public
+          mkdir -p public
+          echo "<h1>Faiths AI</h1>" > public/index.html
 
-      # Step 2: Let Capacitor build its actual, raw Xcode structures safely
-      - name: Build Xcode Base Project Structure
+      # Initialize Capacitor only if missing
+      - name: Initialize Capacitor
+        run: |
+          if [ ! -f capacitor.config.json ]; then
+            npx cap init "Faiths AI" "com.faith.ai" --web-dir=public
+          fi
+
+      # Force modern iOS deployment target BEFORE ios project creation
+      - name: Force iOS 15 Deployment Target
+        run: |
+          node -e "
+          const fs = require('fs');
+          const path = './capacitor.config.json';
+          const config = JSON.parse(fs.readFileSync(path, 'utf8'));
+
+          config.ios = {
+            minVersion: '15.0'
+          };
+
+          fs.writeFileSync(path, JSON.stringify(config, null, 2));
+          console.log('Updated capacitor.config.json');
+          "
+
+      # Add iOS platform
+      - name: Add iOS Platform
         run: |
           npx cap add ios
-        continue-on-error: true # This will bypass the old CocoaPods version target crash!
 
-      # Step 3: Now that the .xcodeproj exists, force-inject our modern iOS 14 Podfile layout
-      - name: Patch Native iOS Deployment Target
+      # Patch Podfile correctly
+      - name: Patch Podfile
         run: |
           cat << 'EOF' > ios/App/Podfile
-          platform :ios, '14.0'
+          platform :ios, '15.0'
+
           use_frameworks!
 
           target 'App' do
+            capacitor_pods
+          end
+
+          def capacitor_pods
             pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
             pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
           end
           EOF
-          echo "Podfile patched successfully with iOS 14.0 and native Xcode tracking."
 
-      # Step 4: Run the asset sync to make sure your web UI is copied in perfectly
-      - name: Sync Frontend Web Assets
+      # Sync Capacitor
+      - name: Sync Capacitor
         run: |
           npx cap sync ios
 
-      # Step 5: Run the native dependency installer now that both the Xcode files and the Podfile match!
-      - name: Install Native iOS Dependencies via CocoaPods
+      # Install CocoaPods dependencies
+      - name: Install CocoaPods Dependencies
         run: |
           cd ios/App
+          pod repo update
           pod install
 
-      # Step 6: Compile the complete project bundle
-      - name: Compile Xcode Workspace
+      # Force deployment target in Xcode project
+      - name: Patch Xcode Deployment Target
+        run: |
+          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = .*/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g' ios/App/App.xcodeproj/project.pbxproj
+
+      # Build app
+      - name: Build Xcode Project
         run: |
           cd ios/App
-          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos clean build CODE_SIGNING_ALLOWED=NO
 
-      # Step 7: Zip everything up into your installable mobile application
-      - name: Package Build into .ipa
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination generic/platform=iOS \
+            CODE_SIGNING_ALLOWED=NO \
+            clean build
+
+      # Create Payload structure
+      - name: Create IPA Structure
         run: |
-          mkdir -p build/ios/ipa
-          cd ios/App/build/Release-iphoneos
-          zip -r ../../../../build/ios/ipa/FaithsAI.ipa App.app
+          mkdir -p Payload
+          cp -R ios/App/build/Release-iphoneos/App.app Payload/
 
-      - name: Upload Completed IPA Artifact
+      # Zip IPA
+      - name: Package IPA
+        run: |
+          mkdir -p build/ios
+          zip -r build/ios/FaithsAI.ipa Payload
+
+      # Upload artifact
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: Faiths-AI-Installer
-          path: build/ios/ipa/FaithsAI.ipa
+          name: FaithsAI-IPA
+          path: build/ios/FaithsAI.ipa
