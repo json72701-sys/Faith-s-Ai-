@@ -31,7 +31,7 @@ jobs:
           npm install
           npm install @capacitor/core @capacitor/cli @capacitor/ios
 
-      # FIX: Pre-builds the exact structure and Podfile before Capacitor can mess it up
+      # Pre-builds the directory structure and drops our custom iOS 14 Podfile inside
       - name: Pre-scaffold iOS Target Directory and Podfile
         run: |
           mkdir -p ios/App
@@ -46,15 +46,21 @@ jobs:
           EOF
           echo "Pre-emptive iOS 14 Podfile deployed successfully."
 
-      # Run initialization safely now that the Podfile target block is pinned to 14.0
-      - name: Initialize Native iOS Scaffold
+      # Initialize only the base configuration settings file
+      - name: Initialize Capacitor Config
         run: |
           npx cap init "Faiths AI" "com.faith.ai" --web-dir=public
-          npx cap add ios
 
-      - name: Bundle Web Assets
+      # FIX: Run sync directly instead of add, so it doesn't crash on the existing folder
+      - name: Bundle Web Assets and Sync Native Dependencies
         run: |
           npx cap sync ios
+
+      # Manually trigger the dependency installation with our clean custom Podfile
+      - name: Install Native iOS Dependencies via CocoaPods
+        run: |
+          cd ios/App
+          pod install
 
       - name: Compile Xcode Workspace
         run: |
