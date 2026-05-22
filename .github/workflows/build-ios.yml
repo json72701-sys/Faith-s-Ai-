@@ -19,7 +19,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       # Step 3: Install all needed app assets and compiler plugins
       - name: Install Project Dependencies
