@@ -18,12 +18,19 @@ jobs:
         with:
           node-version: 20
 
+      # FIX STEP: Dynamically creates package.json if it's missing in the root directory
+      - name: Initialize package.json if missing
+        run: |
+          if [ ! -f package.json ]; then
+            echo "package.json not found! Initializing default project configuration..."
+            npm init -y
+          fi
+
       - name: Install Project Dependencies
         run: |
           npm install
           npm install @capacitor/core @capacitor/cli @capacitor/ios
 
-      # FIX STEP: Generates the missing local config and iOS workspace folders dynamically
       - name: Initialize Native iOS Scaffold
         run: |
           npx cap init "Faiths AI" "com.faith.ai" --web-dir=public --noprompt
