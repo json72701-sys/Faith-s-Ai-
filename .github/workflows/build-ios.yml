@@ -18,7 +18,7 @@ jobs:
         with:
           node-version: 20
 
-      # FIX STEP: Dynamically creates package.json if it's missing in the root directory
+      # Creates package.json if it is missing in the root directory
       - name: Initialize package.json if missing
         run: |
           if [ ! -f package.json ]; then
@@ -31,9 +31,10 @@ jobs:
           npm install
           npm install @capacitor/core @capacitor/cli @capacitor/ios
 
+      # FIX STEP: Uses the exact approved arguments without passing unknown prompt flags
       - name: Initialize Native iOS Scaffold
         run: |
-          npx cap init "Faiths AI" "com.faith.ai" --web-dir=public --noprompt
+          npx cap init "Faiths AI" "com.faith.ai" --web-dir=public
           npx cap add ios
 
       - name: Bundle Web Assets
