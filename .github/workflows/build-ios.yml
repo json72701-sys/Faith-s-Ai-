@@ -31,10 +31,20 @@ jobs:
           npm install
           npm install @capacitor/core @capacitor/cli @capacitor/ios
 
-      # Pre-builds the directory structure and drops our custom iOS 14 Podfile inside
-      - name: Pre-scaffold iOS Target Directory and Podfile
+      # Step 1: Initialize the base configuration setting
+      - name: Initialize Capacitor Config
         run: |
-          mkdir -p ios/App
+          npx cap init "Faiths AI" "com.faith.ai" --web-dir=public
+
+      # Step 2: Let Capacitor build its actual, raw Xcode structures safely
+      - name: Build Xcode Base Project Structure
+        run: |
+          npx cap add ios
+        continue-on-error: true # This will bypass the old CocoaPods version target crash!
+
+      # Step 3: Now that the .xcodeproj exists, force-inject our modern iOS 14 Podfile layout
+      - name: Patch Native iOS Deployment Target
+        run: |
           cat << 'EOF' > ios/App/Podfile
           platform :ios, '14.0'
           use_frameworks!
@@ -44,29 +54,26 @@ jobs:
             pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
           end
           EOF
-          echo "Pre-emptive iOS 14 Podfile deployed successfully."
+          echo "Podfile patched successfully with iOS 14.0 and native Xcode tracking."
 
-      # Initialize only the base configuration settings file
-      - name: Initialize Capacitor Config
-        run: |
-          npx cap init "Faiths AI" "com.faith.ai" --web-dir=public
-
-      # FIX: Run sync directly instead of add, so it doesn't crash on the existing folder
-      - name: Bundle Web Assets and Sync Native Dependencies
+      # Step 4: Run the asset sync to make sure your web UI is copied in perfectly
+      - name: Sync Frontend Web Assets
         run: |
           npx cap sync ios
 
-      # Manually trigger the dependency installation with our clean custom Podfile
+      # Step 5: Run the native dependency installer now that both the Xcode files and the Podfile match!
       - name: Install Native iOS Dependencies via CocoaPods
         run: |
           cd ios/App
           pod install
 
+      # Step 6: Compile the complete project bundle
       - name: Compile Xcode Workspace
         run: |
           cd ios/App
           xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos clean build CODE_SIGNING_ALLOWED=NO
 
+      # Step 7: Zip everything up into your installable mobile application
       - name: Package Build into .ipa
         run: |
           mkdir -p build/ios/ipa
