@@ -1,0 +1,8 @@
+{
+  "appId": "com.faith.ai",
+  "appName": "Faiths AI",
+  "webDir": "public",
+  "ios": {
+    "minVersion": "15.0"
+  }
+}
